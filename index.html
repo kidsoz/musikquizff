@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-<meta charset="UTF-8">
-<title>🎧 Musikquiz (endast ljud)</title>
+<meta charset="UTF-8" />
+<title>🎧 Musikquiz – endast ljud</title>
 
 <style>
   body {
@@ -18,14 +18,15 @@
     font-size: 1rem;
   }
 
-  /* YouTube-spelaren göms helt */
+  /* ✅ YouTube-spelaren göms STABILT */
   #player-wrapper {
+    position: fixed;
     width: 1px;
     height: 1px;
+    left: -9999px;
+    top: -9999px;
     overflow: hidden;
-    position: absolute;
-    top: -1000px;
-    left: -1000px;
+    pointer-events: none;
   }
 </style>
 </head>
@@ -37,23 +38,22 @@
 <button id="start">Starta quiz</button>
 
 <p id="question"></p>
-
 <div id="options"></div>
-
 <p id="score"></p>
 
-<!-- GÖMD YouTube-spelare -->
+<!-- ✅ GÖMD YouTube-spelare -->
 <div id="player-wrapper">
   <div id="player"></div>
 </div>
 
+<!-- ✅ RÄTT sätt att ladda YouTube IFrame API -->
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
 /* ========= QUIZDATA ========= */
 const quiz = [
   {
-    videoId: "fJ9rUzIMcZQ", // Queen
+    videoId: "fJ9rUzIMcZQ",
     start: 30,
     answer: "Bohemian Rhapsody",
     options: [
@@ -63,23 +63,13 @@ const quiz = [
     ]
   },
   {
-    videoId: "3JZ4pnNtyxQ", // MJ
-    start: 40,
+    videoId: "3JZ4pnNtyxQ",
+    start: 42,
     answer: "Billie Jean",
     options: [
       "Beat It",
       "Thriller",
       "Billie Jean"
-    ]
-  },
-  {
-    videoId: "kXYiU_JCYtU", // Linkin Park
-    start: 35,
-    answer: "Numb",
-    options: [
-      "In The End",
-      "Numb",
-      "Crawling"
     ]
   }
 ];
@@ -88,19 +78,17 @@ let player;
 let index = 0;
 let score = 0;
 
-/* ========= YOUTUBE API ========= */
+/* ========= YOUTUBE ========= */
 function onYouTubeIframeAPIReady() {
   player = new YT.Player("player", {
     height: "1",
     width: "1",
     playerVars: {
       controls: 0,
-      rel: 0,
-      showinfo: 0,
-      modestbranding: 1
-    },
-    events: {
-      onReady: () => {}
+      disablekb: 1,
+      fs: 0,
+      modestbranding: 1,
+      rel: 0
     }
   });
 }
@@ -126,15 +114,17 @@ function nextQuestion() {
     startSeconds: q.start
   });
 
-  // spela 12 sek, sen pausa
-  setTimeout(() => player.pauseVideo(), 12000);
+  // ✅ spela bara ljud i 12 sek
+  setTimeout(() => {
+    player.pauseVideo();
+  }, 12000);
 
   q.options
     .sort(() => Math.random() - 0.5)
-    .forEach(option => {
+    .forEach(opt => {
       const btn = document.createElement("button");
-      btn.textContent = option;
-      btn.onclick = () => answer(option === q.answer);
+      btn.textContent = opt;
+      btn.onclick = () => answer(opt === q.answer);
       document.getElementById("options").appendChild(btn);
     });
 }
