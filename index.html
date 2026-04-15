@@ -33,6 +33,13 @@
     document.getElementById("status").textContent =
       "✅ Redirect tillbaka från Spotify fungerar";
   }
+  const params = new URLSearchParams(window.location.search);
+const code = params.get("code");
+
+if (code) {
+  document.getElementById("status").textContent =
+    "✅ OAuth-kod mottagen från Spotify";
+}
 </script>
 
 </body>
