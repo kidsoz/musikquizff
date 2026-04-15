@@ -112,7 +112,9 @@
 
     // Försök med auth först, fallback utan auth om nödvändigt
     const token = localStorage.getItem("spotify_access_token");
-    let res = await fetch(`https://api.spotify.com/v1/playlists/${pid}/tracks`, {
+    let res = await 
+fetch(
+  `https://spotify-proxy.joeljohansson89.workers.dev/?playlist=${playlistId}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     });
 
