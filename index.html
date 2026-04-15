@@ -2,183 +2,112 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <title>🎵 Spotify Musikquiz</title>
+  <title>🎵 YouTube Musikquiz</title>
   <style>
     body {
       font-family: system-ui, Arial, sans-serif;
       max-width: 700px;
       margin: 2rem auto;
     }
-    button, input {
+    button {
       padding: 0.5rem;
-      font-size: 1rem;
-      margin-top: 0.5rem;
       width: 100%;
+      margin-top: 0.5rem;
+      font-size: 1rem;
     }
-    #options button {
-      margin-top: 0.3rem;
-      text-align: left;
+    iframe {
+      width: 100%;
+      height: 315px;
+      margin-top: 1rem;
     }
   </style>
 </head>
 <body>
 
-<h1>🎵 Spotify Musikquiz</h1>
+<h1>🎵 YouTube Musikquiz</h1>
 
-<button id="login">Logga in med Spotify</button>
+<button id="start">Starta quiz</button>
+<p id="question"></p>
 
-<p id="status"></p>
+<iframe
+  id="player"
+  src=""
+  frameborder="0"
+  allow="autoplay; encrypted-media"
+  allowfullscreen>
+</iframe>
 
-<hr>
-
-<input id="playlistId" placeholder="Klistra in Spotify Playlist-ID" />
-<button id="load">Starta quiz</button>
-
-<h2 id="question"></h2>
-<audio id="audio" controls></audio>
 <div id="options"></div>
 <p id="score"></p>
-<button id="next" style="display:none;">Nästa</button>
 
 <script>
 /* =========================
-   KONFIG
+   QUIZDATA (BYGG UT!)
 ========================= */
-const CLIENT_ID = "cb562e24e68e49bdb497b65bc42cd010";
-const REDIRECT_URI = "https://kidsoz.github.io/musikquizff/";
-const SCOPES = "playlist-read-public";
-
-/* =========================
-   PKCE-HJÄLP
-========================= */
-function generateVerifier() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let str = "";
-  for (let i = 0; i < 64; i++) {
-    str += chars[Math.floor(Math.random() * chars.length)];
+const quiz = [
+  {
+    videoId: "fJ9rUzIMcZQ", // Queen – Bohemian Rhapsody
+    correct: "Bohemian Rhapsody",
+    options: ["Bohemian Rhapsody", "We Will Rock You", "Another One Bites The Dust"]
+  },
+  {
+    videoId: "3JZ4pnNtyxQ", // Billie Jean
+    correct: "Billie Jean",
+    options: ["Thriller", "Beat It", "Billie Jean"]
+  },
+  {
+    videoId: "kXYiU_JCYtU", // Numb
+    correct: "Numb",
+    options: ["In The End", "Numb", "Crawling"]
   }
-  return str;
-}
+];
 
-async function generateChallenge(verifier) {
-  const data = new TextEncoder().encode(verifier);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
-/* =========================
-   LOGIN
-========================= */
-document.getElementById("login").onclick = async () => {
-  const verifier = generateVerifier();
-  localStorage.setItem("verifier", verifier);
-  const challenge = await generateChallenge(verifier);
-
-  const url =
-    "https://accounts.spotify.com/authorize" +
-    "?client_id=" + CLIENT_ID +
-    "&response_type=code" +
-    "&redirect_uri=" + encodeURIComponent(REDIRECT_URI) +
-    "&scope=" + SCOPES +
-    "&code_challenge_method=S256" +
-    "&code_challenge=" + challenge;
-
-  window.location.href = url;
-};
-
-/* =========================
-   TOKEN-UTBYTE
-========================= */
-const params = new URLSearchParams(window.location.search);
-const code = params.get("code");
-
-if (code) getToken(code);
-
-async function getToken(code) {
-  const verifier = localStorage.getItem("verifier");
-
-  const body = new URLSearchParams({
-    grant_type: "authorization_code",
-    code,
-    redirect_uri: REDIRECT_URI,
-    client_id: CLIENT_ID,
-    code_verifier: verifier
-  });
-
-  const res = await fetch("https://accounts.spotify.com/api/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
-  });
-
-  const data = await res.json();
-  localStorage.setItem("token", data.access_token);
-  document.getElementById("status").textContent = "✅ Inloggad!";
-  window.history.replaceState({}, document.title, REDIRECT_URI);
-}
-
-/* =========================
-   QUIZ
-========================= */
-let tracks = [];
 let index = 0;
 let score = 0;
 
-document.getElementById("load").onclick = loadPlaylist;
-document.getElementById("next").onclick = nextQuestion;
+document.getElementById("start").onclick = startQuiz;
 
-async function loadPlaylist() {
-  const id = document.getElementById("playlistId").value.trim();
-  const token = localStorage.getItem("token");
-
-  const res = await fetch(
-    `https://api.spotify.com/v1/playlists/${id}/tracks`,
-    {
-      headers: { Authorization: `Bearer ${token}` }
-    }
-  );
-
-  const data = await res.json();
-  tracks = data.items.map(i => i.track).filter(t => t.preview_url);
-
+function startQuiz() {
   index = 0;
   score = 0;
   nextQuestion();
 }
 
 function nextQuestion() {
-  document.getElementById("next").style.display = "none";
-  const track = tracks[index];
+  const q = quiz[index];
   document.getElementById("question").textContent = "Vilken låt är detta?";
-  document.getElementById("audio").src = track.preview_url;
-  document.getElementById("audio").play();
-
-  const options = tracks
-    .filter(t => t.name !== track.name)
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 2)
-    .map(t => t.name)
-    .concat(track.name)
-    .sort(() => Math.random() - 0.5);
-
-  document.getElementById("options").innerHTML = "";
-  options.forEach(name => {
-    const b = document.createElement("button");
-    b.textContent = name;
-    b.onclick = () => answer(name === track.name);
-    document.getElementById("options").appendChild(b);
-  });
-
   document.getElementById("score").textContent = `Poäng: ${score}`;
+
+  // startar videon på 30s och autoplay
+  document.getElementById("player").src =
+    `https://www.youtube.com/embed/${q.videoId}?start=30&autoplay=1`;
+
+  const optionsDiv = document.getElementById("options");
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.textContent = opt;
+    btn.onclick = () => answer(opt === q.correct);
+    optionsDiv.appendChild(btn);
+  });
 }
 
 function answer(correct) {
-  if (correct) score++;
-  document.getElementById("next").style.display = "inline";
+  if (correct) {
+    alert("✅ Rätt!");
+    score++;
+  } else {
+    alert("❌ Fel!");
+  }
+
   index++;
+  if (index < quiz.length) {
+    nextQuestion();
+  } else {
+    alert(`🎉 Quiz klart! Poäng: ${score}/${quiz.length}`);
+    document.getElementById("player").src = "";
+  }
 }
 </script>
 
