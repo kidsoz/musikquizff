@@ -2,18 +2,21 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <title>Spotify Login – Minimal Test</title>
+  <title>Spotify Login – GitHub Test</title>
 </head>
 <body>
 
-<h1>Spotify login – test</h1>
+<h1>Spotify login – GitHub test</h1>
 
 <button id="login">Logga in med Spotify</button>
 <p id="status"></p>
 
 <script>
+  // ✅ BYT TILL DITT RIKTIGA CLIENT ID
   const CLIENT_ID = "cb562e24e68e49bdb497b65bc42cd010";
-  const REDIRECT_URI = window.location.origin;
+
+  const REDIRECT_URI =
+    "https://kidsoz.github.io/musikquiz/";
 
   document.getElementById("login").onclick = () => {
     const authUrl =
@@ -26,14 +29,11 @@
   };
 
   const params = new URLSearchParams(window.location.search);
-  const code = params.get("code");
-
-  if (code) {
+  if (params.get("code")) {
     document.getElementById("status").textContent =
-      "✅ Redirect tillbaka med code fungerar";
+      "✅ Redirect tillbaka från Spotify fungerar";
   }
 </script>
 
 </body>
 </html>
-``
