@@ -2,29 +2,42 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <title>Spotify OAuth + Token</title>
+  <title>Spotify Musikquiz</title>
 </head>
 <body>
 
-<h1>Spotify-inloggning</h1>
+<h1>🎵 Spotify Musikquiz</h1>
 
 <button id="login">Logga in med Spotify</button>
 <p id="status"></p>
+
+<hr>
+
+<h2>Välj spellista</h2>
+<input id="playlistId" placeholder="Klistra in Spotify Playlist ID">
+<button id="loadPlaylist">Starta quiz</button>
+<p id="playlistStatus"></p>
+
+<hr>
+
+<h2 id="question"></h2>
+<audio id="player" controls></audio>
+
+<div id="options"></div>
+<p id="score"></p>
+<button id="next" style="display:none;">Nästa låt</button>
 
 <script>
   // ========= INSTÄLLNINGAR =========
   const CLIENT_ID = "cb562e24e68e49bdb497b65bc42cd010";
   const REDIRECT_URI = "https://kidsoz.github.io/musikquizff/";
 
-  // ========= PKCE-HJÄLPFUNKTIONER =========
+  // ========= PKCE =========
   function generateVerifier() {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
     let verifier = "";
     const random = crypto.getRandomValues(new Uint8Array(64));
-    for (let i = 0; i < random.length; i++) {
-      verifier += chars[random[i] % chars.length];
-    }
+    for (let i = 0; i < random.length; i++) verifier += chars[random[i] % chars.length];
     return verifier;
   }
 
@@ -33,20 +46,14 @@
     const digest = await crypto.subtle.digest("SHA-256", data);
     const bytes = new Uint8Array(digest);
     let binary = "";
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary)
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
   }
 
   // ========= LOGIN =========
   document.getElementById("login").onclick = async () => {
     const verifier = generateVerifier();
     localStorage.setItem("pkce_verifier", verifier);
-
     const challenge = await generateChallenge(verifier);
 
     const authUrl =
@@ -60,17 +67,14 @@
     window.location.href = authUrl;
   };
 
-  // ========= TA EMOT CODE + BYT MOT TOKEN =========
+  // ========= TOKEN =========
   const params = new URLSearchParams(window.location.search);
   const code = params.get("code");
 
-  if (code) {
-    exchangeToken(code);
-  }
+  if (code) exchangeToken(code);
 
-  async function exchangeToken(code) {
+  async function exchangeToken(code){
     const verifier = localStorage.getItem("pkce_verifier");
-
     const body = new URLSearchParams({
       client_id: CLIENT_ID,
       grant_type: "authorization_code",
@@ -79,32 +83,98 @@
       code_verifier: verifier
     });
 
-    const response = await fetch(
-      "https://accounts.spotify.com/api/token",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body
-      }
-    );
+    const res = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {"Content-Type":"application/x-www-form-urlencoded"},
+      body
+    });
 
-    if (!response.ok) {
-      document.getElementById("status").textContent =
-        "❌ Kunde inte hämta token";
+    if(!res.ok){
+      document.getElementById("status").textContent = "❌ Kunde inte hämta token";
+      return;
+    }
+    const data = await res.json();
+    localStorage.setItem("spotify_access_token", data.access_token);
+    document.getElementById("status").textContent = "✅ Inloggad – redo för quiz!";
+    document.getElementById("login").style.display = "none";
+    window.history.replaceState({}, document.title, REDIRECT_URI);
+  }
+
+  // ========= QUIZLOGIK =========
+  let tracks = [];
+  let idx = 0;
+  let score = 0;
+
+  document.getElementById("loadPlaylist").onclick = async () => {
+    const pid = document.getElementById("playlistId").value.trim();
+    const status = document.getElementById("playlistStatus");
+    if(!pid){ status.textContent="❌ Ange ett playlist‑ID"; return; }
+
+    // Försök med auth först, fallback utan auth om nödvändigt
+    const token = localStorage.getItem("spotify_access_token");
+    let res = await fetch(`https://api.spotify.com/v1/playlists/${pid}/tracks`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+
+    if(!res.ok){
+      // fallback utan auth
+      res = await fetch(`https://api.spotify.com/v1/playlists/${pid}/tracks`);
+    }
+
+    if(!res.ok){
+      status.textContent="❌ Kunde inte läsa spellistan";
       return;
     }
 
-    const data = await response.json();
-    localStorage.setItem("spotify_access_token", data.access_token);
+    const data = await res.json();
+    tracks = data.items.map(i=>i.track).filter(t=>t && t.preview_url);
+    if(tracks.length < 3){ status.textContent="❌ För få låtar med preview"; return; }
 
-    document.getElementById("status").textContent =
-      "✅ Access token mottaget!";
+    status.textContent = `✅ Laddade ${tracks.length} låtar`;
+    idx = 0; score = 0;
+    nextQuestion();
+  };
 
-    // Städa URL
-    window.history.replaceState({}, document.title, REDIRECT_URI);
+  function nextQuestion(){
+    document.getElementById("next").style.display="none";
+    const q = tracks[idx];
+    document.getElementById("question").textContent = "Vilken låt är detta?";
+    const audio = document.getElementById("player");
+    audio.src = q.preview_url;
+    audio.play();
+
+    const options = makeOptions(q.name);
+    renderOptions(options, q.name);
+    document.getElementById("score").textContent = `Poäng: ${score}`;
   }
+
+  function makeOptions(correct){
+    const others = tracks.filter(t=>t.name!==correct)
+      .sort(()=>Math.random()-0.5).slice(0,2).map(t=>t.name);
+    return [...others, correct].sort(()=>Math.random()-0.5);
+  }
+
+  function renderOptions(options, correct){
+    const box = document.getElementById("options");
+    box.innerHTML="";
+    options.forEach(name=>{
+      const b = document.createElement("button");
+      b.textContent = name;
+      b.onclick = ()=>{
+        if(name===correct){ score++; alert("✅ Rätt!"); }
+        else{ alert("❌ Fel!"); }
+        document.getElementById("next").style.display="inline";
+        document.getElementById("score").textContent = `Poäng: ${score}`;
+      };
+      box.appendChild(b);
+    });
+  }
+
+  document.getElementById("next").onclick = ()=>{
+    idx++;
+    if(idx < tracks.length) nextQuestion();
+    else alert(`🎉 Quiz klart! Poäng: ${score}`);
+  };
 </script>
 
 </body>
