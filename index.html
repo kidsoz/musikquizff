@@ -12,9 +12,7 @@
     background: #020617;
     color: #e5e7eb;
   }
-
   h1, h2 { text-align: center; }
-
   .card {
     background: #020617;
     border-radius: 16px;
@@ -22,7 +20,6 @@
     margin-top: 1rem;
     border: 1px solid #1e293b;
   }
-
   button, select {
     width: 100%;
     padding: 0.7rem;
@@ -32,30 +29,15 @@
     margin-top: 0.5rem;
     cursor: pointer;
   }
-
   button { background: #2563eb; color: white; }
   button.secondary { background: #475569; }
-
-  .timer {
-    font-size: 2.4rem;
-    text-align: center;
-    margin: 0.5rem 0;
-  }
-
-  .scores {
-    display: flex;
-    justify-content: space-between;
-    font-weight: bold;
-  }
-
+  .timer { font-size: 2.4rem; text-align: center; margin: 0.5rem 0; }
+  .scores { display: flex; justify-content: space-between; font-weight: bold; }
   #player-wrapper {
     position: fixed;
-    width: 1px;
-    height: 1px;
-    left: -9999px;
-    top: -9999px;
-    overflow: hidden;
-    pointer-events: none;
+    width: 1px; height: 1px;
+    left: -9999px; top: -9999px;
+    overflow: hidden; pointer-events: none;
   }
 </style>
 </head>
@@ -83,11 +65,10 @@
   <div class="timer" id="timer">12</div>
   <h2 id="question">Tryck start…</h2>
 
-  <button id="showAnswer" class="secondary" style="display:none;">
-    Visa rätt svar
-  </button>
+  <div id="options"></div>
 
-  <p id="answer" style="text-align:center;font-size:1.3rem;"></p>
+  <button id="showAnswer" class="secondary" style="display:none;">Visa facit</button>
+  <p id="answer" style="text-align:center;font-size:1.2rem;"></p>
 
   <div class="scores">
     <button onclick="addPoint('A')">+1 Lag A</button>
@@ -97,35 +78,25 @@
   <button id="next" class="secondary" style="display:none;">Nästa låt</button>
 </div>
 
-<div id="player-wrapper">
-  <div id="player"></div>
-</div>
+<div id="player-wrapper"><div id="player"></div></div>
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
-/* ===== LÅTDATA ===== */
+/* ===== DATA ===== */
 const quizData = [
-  { videoId: "CevxZvSJLk8", title: "Mr Brightside", artist: "The Killers" },
-  { videoId: "kXYiU_JCYtU", title: "Numb", artist: "Linkin Park" },
-  { videoId: "dvgZkm1xWPE", title: "Bad Romance", artist: "Lady Gaga" },
-  { videoId: "bo_efYhYU2A", title: "Yeah!", artist: "Usher" },
-  { videoId: "hTWKbfoikeg", title: "Smells Like Teen Spirit", artist: "Nirvana" }
+  { videoId: "CevxZvSJLk8", title: "Mr Brightside", artist: "The Killers", decade: "2000-tal" },
+  { videoId: "kXYiU_JCYtU", title: "Numb", artist: "Linkin Park", decade: "2000-tal" },
+  { videoId: "dvgZkm1xWPE", title: "Bad Romance", artist: "Lady Gaga", decade: "2000-tal" },
+  { videoId: "bo_efYhYU2A", title: "Yeah!", artist: "Usher", decade: "2000-tal" },
+  { videoId: "hTWKbfoikeg", title: "Smells Like Teen Spirit", artist: "Nirvana", decade: "1990-tal" }
 ];
 
-let player;
-let index = 0;
-let timeLeft = 12;
-let timer;
-let scoreA = 0;
-let scoreB = 0;
+let player, index = 0, timer, timeLeft = 12;
+let scoreA = 0, scoreB = 0;
 
 /* ===== YOUTUBE ===== */
 function onYouTubeIframeAPIReady() {
-  player = new YT.Player("player", {
-    height: "1",
-    width: "1",
-    playerVars: { controls: 0 }
-  });
+  player = new YT.Player("player", { height: "1", width: "1", playerVars: { controls: 0 } });
 }
 
 /* ===== QUIZ ===== */
@@ -134,40 +105,48 @@ document.getElementById("next").onclick = nextQuestion;
 document.getElementById("showAnswer").onclick = showAnswer;
 
 function startQuiz() {
-  index = 0;
-  scoreA = 0;
-  scoreB = 0;
+  index = 0; scoreA = 0; scoreB = 0;
+  shuffle(quizData);
   updateScores();
   nextQuestion();
 }
 
 function nextQuestion() {
   if (index >= quizData.length) {
-    alert(`🎉 Quiz klart!\nLag A: ${scoreA}\nLag B: ${scoreB}`);
+    alert(`🎉 Klar!\nLag A: ${scoreA}\nLag B: ${scoreB}`);
     player.stopVideo();
     return;
   }
 
   clearInterval(timer);
+  timeLeft = 12;
+  updateTimer();
+  document.getElementById("options").innerHTML = "";
   document.getElementById("answer").textContent = "";
   document.getElementById("showAnswer").style.display = "none";
   document.getElementById("next").style.display = "none";
 
   const q = quizData[index];
-  const diff = document.getElementById("difficulty").value;
+  const diff = difficulty.value;
   const startTime = diff === "easy" ? 55 : diff === "medium" ? 35 : 10;
 
-  document.getElementById("question").textContent =
-    "Skriv ner: Vilken låt + artist är detta?";
+  const type = ["title", "artist", "decade"][Math.floor(Math.random() * 3)];
+  question.textContent =
+    type === "title" ? "Vilken låt är detta?" :
+    type === "artist" ? "Vilken artist är detta?" :
+    "Vilket årtionde är låten ifrån?";
 
-  timeLeft = 12;
-  updateTimer();
+  const options = generateOptions(type, q);
+  options.forEach(opt => {
+    const b = document.createElement("button");
+    b.textContent = opt;
+    document.getElementById("options").appendChild(b);
+  });
 
   player.loadVideoById({ videoId: q.videoId, startSeconds: startTime });
 
   timer = setInterval(() => {
-    timeLeft--;
-    updateTimer();
+    timeLeft--; updateTimer();
     if (timeLeft === 0) endRound();
   }, 1000);
 }
@@ -180,11 +159,15 @@ function endRound() {
 
 function showAnswer() {
   const q = quizData[index];
-  document.getElementById("answer").textContent =
-    `✅ ${q.title} – ${q.artist}`;
-
-  index++; // ✅ HÄR ÄR FIXEN – gå vidare till nästa låt
+  answer.textContent = `✅ ${q.title} – ${q.artist}`;
+  index++;
   document.getElementById("next").style.display = "block";
+}
+
+function generateOptions(type, correct) {
+  const pool = quizData.map(q => q[type]);
+  const unique = [...new Set(pool)];
+  return shuffle(unique.filter(v => v !== correct[type])).slice(0,2).concat(correct[type]).sort(()=>Math.random()-0.5);
 }
 
 function addPoint(team) {
@@ -193,13 +176,19 @@ function addPoint(team) {
 }
 
 function updateScores() {
-  document.getElementById("scoreA").textContent = `Lag A: ${scoreA}`;
-  document.getElementById("scoreB").textContent = `Lag B: ${scoreB}`;
+  scoreAEl.textContent = `Lag A: ${scoreA}`;
+  scoreBEl.textContent = `Lag B: ${scoreB}`;
 }
 
-function updateTimer() {
-  document.getElementById("timer").textContent = timeLeft;
-}
+function updateTimer() { timerEl.textContent = timeLeft; }
+function shuffle(a){ return a.sort(()=>Math.random()-0.5); }
+
+const timerEl = document.getElementById("timer");
+const question = document.getElementById("question");
+const answer = document.getElementById("answer");
+const difficulty = document.getElementById("difficulty");
+const scoreAEl = document.getElementById("scoreA");
+const scoreBEl = document.getElementById("scoreB");
 </script>
 
 </body>
