@@ -2,23 +2,62 @@
 <html lang="sv">
 <head>
 <meta charset="UTF-8" />
-<title>🎧 Musikquiz – endast ljud</title>
+<title>🎧 Musikquiz – Samtidiga svar</title>
 
 <style>
   body {
     font-family: system-ui, Arial, sans-serif;
-    max-width: 700px;
+    max-width: 850px;
     margin: 2rem auto;
+    background: #020617;
+    color: #e5e7eb;
+  }
+
+  h1, h2 {
+    text-align: center;
+  }
+
+  .card {
+    background: #020617;
+    border-radius: 16px;
+    padding: 1.2rem;
+    margin-top: 1rem;
+    box-shadow: 0 10px 25px rgba(0,0,0,.5);
+    border: 1px solid #1e293b;
+  }
+
+  button, select {
+    width: 100%;
+    padding: 0.7rem;
+    font-size: 1rem;
+    border-radius: 10px;
+    border: none;
+    margin-top: 0.5rem;
+    cursor: pointer;
   }
 
   button {
-    width: 100%;
-    padding: 0.6rem;
-    margin-top: 0.4rem;
-    font-size: 1rem;
+    background: #2563eb;
+    color: white;
   }
 
-  /* ✅ YouTube-spelaren göms STABILT */
+  button.secondary {
+    background: #475569;
+  }
+
+  .timer {
+    font-size: 2.4rem;
+    text-align: center;
+    margin: 0.5rem 0;
+  }
+
+  .scores {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 1.1rem;
+  }
+
   #player-wrapper {
     position: fixed;
     width: 1px;
@@ -33,117 +72,133 @@
 
 <body>
 
-<h1>🎧 Vilken låt är detta?</h1>
+<h1>🎧 Musikquiz – 90‑talister</h1>
 
-<button id="start">Starta quiz</button>
+<div class="card">
+  <label>Svårighetsnivå:</label>
+  <select id="difficulty">
+    <option value="easy">🟢 Lätt (refräng)</option>
+    <option value="medium">🟡 Medel (vers)</option>
+    <option value="hard">🔴 Svår (tidigt intro)</option>
+  </select>
+  <button id="start">Starta quiz</button>
+</div>
 
-<p id="question"></p>
-<div id="options"></div>
-<p id="score"></p>
+<div class="card scores">
+  <span id="scoreA">Lag A: 0</span>
+  <span id="scoreB">Lag B: 0</span>
+</div>
 
-<!-- ✅ GÖMD YouTube-spelare -->
+<div class="card">
+  <div class="timer" id="timer">12</div>
+  <h2 id="question">Tryck start…</h2>
+
+  <button id="showAnswer" class="secondary" style="display:none;">
+    Visa rätt svar
+  </button>
+
+  <p id="answer" style="text-align:center;font-size:1.3rem;"></p>
+
+  <div class="scores">
+    <button onclick="addPoint('A')">+1 Lag A</button>
+    <button onclick="addPoint('B')">+1 Lag B</button>
+  </div>
+
+  <button id="next" class="secondary" style="display:none;">Nästa låt</button>
+</div>
+
 <div id="player-wrapper">
   <div id="player"></div>
 </div>
 
-<!-- ✅ RÄTT sätt att ladda YouTube IFrame API -->
 <script src="https://www.youtube.com/iframe_api"></script>
-
 <script>
-/* ========= QUIZDATA ========= */
-const quiz = [
-  {
-    videoId: "fJ9rUzIMcZQ",
-    start: 30,
-    answer: "Bohemian Rhapsody",
-    options: [
-      "Bohemian Rhapsody",
-      "We Will Rock You",
-      "Another One Bites The Dust"
-    ]
-  },
-  {
-    videoId: "3JZ4pnNtyxQ",
-    start: 42,
-    answer: "Billie Jean",
-    options: [
-      "Beat It",
-      "Thriller",
-      "Billie Jean"
-    ]
-  }
+/* =========================
+   QUIZDATA – 1989–1995
+========================= */
+const quizData = [
+  { videoId: "CevxZvSJLk8", title: "Mr Brightside", artist: "The Killers" },
+  { videoId: "kXYiU_JCYtU", title: "Numb", artist: "Linkin Park" },
+  { videoId: "dvgZkm1xWPE", title: "Bad Romance", artist: "Lady Gaga" },
+  { videoId: "bo_efYhYU2A", title: "Yeah!", artist: "Usher" },
+  { videoId: "hTWKbfoikeg", title: "Smells Like Teen Spirit", artist: "Nirvana" }
 ];
 
-let player;
-let index = 0;
-let score = 0;
+let player, index = 0, timer, timeLeft = 12;
+let scoreA = 0, scoreB = 0;
 
-/* ========= YOUTUBE ========= */
+/* ===== YouTube ===== */
 function onYouTubeIframeAPIReady() {
   player = new YT.Player("player", {
     height: "1",
     width: "1",
-    playerVars: {
-      controls: 0,
-      disablekb: 1,
-      fs: 0,
-      modestbranding: 1,
-      rel: 0
-    }
+    playerVars: { controls: 0 }
   });
 }
 
-/* ========= QUIZ ========= */
+/* ===== Quiz ===== */
 document.getElementById("start").onclick = startQuiz;
+document.getElementById("next").onclick = nextQuestion;
+document.getElementById("showAnswer").onclick = showAnswer;
 
 function startQuiz() {
   index = 0;
-  score = 0;
+  scoreA = 0;
+  scoreB = 0;
+  updateScores();
   nextQuestion();
 }
 
 function nextQuestion() {
-  document.getElementById("options").innerHTML = "";
-  document.getElementById("score").textContent = `Poäng: ${score}`;
+  clearInterval(timer);
+  document.getElementById("answer").textContent = "";
+  document.getElementById("showAnswer").style.display = "none";
+  document.getElementById("next").style.display = "none";
 
-  const q = quiz[index];
-  document.getElementById("question").textContent = "Lyssna...";
+  const q = quizData[index];
+  const diff = document.getElementById("difficulty").value;
+  const startTime = diff === "easy" ? 55 : diff === "medium" ? 35 : 10;
 
-  player.loadVideoById({
-    videoId: q.videoId,
-    startSeconds: q.start
-  });
+  document.getElementById("question").textContent =
+    "Skriv ner: Vilken låt + artist är detta?";
 
-  // ✅ spela bara ljud i 12 sek
-  setTimeout(() => {
-    player.pauseVideo();
-  }, 12000);
+  timeLeft = 12;
+  updateTimer();
 
-  q.options
-    .sort(() => Math.random() - 0.5)
-    .forEach(opt => {
-      const btn = document.createElement("button");
-      btn.textContent = opt;
-      btn.onclick = () => answer(opt === q.answer);
-      document.getElementById("options").appendChild(btn);
-    });
+  player.loadVideoById({ videoId: q.videoId, startSeconds: startTime });
+
+  timer = setInterval(() => {
+    timeLeft--;
+    updateTimer();
+    if (timeLeft === 0) endRound();
+  }, 1000);
 }
 
-function answer(correct) {
-  if (correct) {
-    score++;
-    alert("✅ Rätt!");
-  } else {
-    alert("❌ Fel!");
-  }
+function endRound() {
+  clearInterval(timer);
+  player.pauseVideo();
+  document.getElementById("showAnswer").style.display = "block";
+}
 
-  index++;
-  if (index < quiz.length) {
-    nextQuestion();
-  } else {
-    alert(`🎉 Klar! Poäng: ${score}/${quiz.length}`);
-    player.stopVideo();
-  }
+function showAnswer() {
+  const q = quizData[index];
+  document.getElementById("answer").textContent =
+    `✅ ${q.title} – ${q.artist}`;
+  document.getElementById("next").style.display = "block";
+}
+
+function addPoint(team) {
+  team === "A" ? scoreA++ : scoreB++;
+  updateScores();
+}
+
+function updateScores() {
+  document.getElementById("scoreA").textContent = `Lag A: ${scoreA}`;
+  document.getElementById("scoreB").textContent = `Lag B: ${scoreB}`;
+}
+
+function updateTimer() {
+  document.getElementById("timer").textContent = timeLeft;
 }
 </script>
 
