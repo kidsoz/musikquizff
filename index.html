@@ -13,16 +13,13 @@
     color: #e5e7eb;
   }
 
-  h1, h2 {
-    text-align: center;
-  }
+  h1, h2 { text-align: center; }
 
   .card {
     background: #020617;
     border-radius: 16px;
     padding: 1.2rem;
     margin-top: 1rem;
-    box-shadow: 0 10px 25px rgba(0,0,0,.5);
     border: 1px solid #1e293b;
   }
 
@@ -36,14 +33,8 @@
     cursor: pointer;
   }
 
-  button {
-    background: #2563eb;
-    color: white;
-  }
-
-  button.secondary {
-    background: #475569;
-  }
+  button { background: #2563eb; color: white; }
+  button.secondary { background: #475569; }
 
   .timer {
     font-size: 2.4rem;
@@ -55,7 +46,6 @@
     display: flex;
     justify-content: space-between;
     font-weight: bold;
-    font-size: 1.1rem;
   }
 
   #player-wrapper {
@@ -77,9 +67,9 @@
 <div class="card">
   <label>Svårighetsnivå:</label>
   <select id="difficulty">
-    <option value="easy">🟢 Lätt (refräng)</option>
-    <option value="medium">🟡 Medel (vers)</option>
-    <option value="hard">🔴 Svår (tidigt intro)</option>
+    <option value="easy">🟢 Lätt</option>
+    <option value="medium">🟡 Medel</option>
+    <option value="hard">🔴 Svår</option>
   </select>
   <button id="start">Starta quiz</button>
 </div>
@@ -113,9 +103,7 @@
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
-/* =========================
-   QUIZDATA – 1989–1995
-========================= */
+/* ===== LÅTDATA ===== */
 const quizData = [
   { videoId: "CevxZvSJLk8", title: "Mr Brightside", artist: "The Killers" },
   { videoId: "kXYiU_JCYtU", title: "Numb", artist: "Linkin Park" },
@@ -124,10 +112,14 @@ const quizData = [
   { videoId: "hTWKbfoikeg", title: "Smells Like Teen Spirit", artist: "Nirvana" }
 ];
 
-let player, index = 0, timer, timeLeft = 12;
-let scoreA = 0, scoreB = 0;
+let player;
+let index = 0;
+let timeLeft = 12;
+let timer;
+let scoreA = 0;
+let scoreB = 0;
 
-/* ===== YouTube ===== */
+/* ===== YOUTUBE ===== */
 function onYouTubeIframeAPIReady() {
   player = new YT.Player("player", {
     height: "1",
@@ -136,7 +128,7 @@ function onYouTubeIframeAPIReady() {
   });
 }
 
-/* ===== Quiz ===== */
+/* ===== QUIZ ===== */
 document.getElementById("start").onclick = startQuiz;
 document.getElementById("next").onclick = nextQuestion;
 document.getElementById("showAnswer").onclick = showAnswer;
@@ -150,6 +142,12 @@ function startQuiz() {
 }
 
 function nextQuestion() {
+  if (index >= quizData.length) {
+    alert(`🎉 Quiz klart!\nLag A: ${scoreA}\nLag B: ${scoreB}`);
+    player.stopVideo();
+    return;
+  }
+
   clearInterval(timer);
   document.getElementById("answer").textContent = "";
   document.getElementById("showAnswer").style.display = "none";
@@ -184,6 +182,8 @@ function showAnswer() {
   const q = quizData[index];
   document.getElementById("answer").textContent =
     `✅ ${q.title} – ${q.artist}`;
+
+  index++; // ✅ HÄR ÄR FIXEN – gå vidare till nästa låt
   document.getElementById("next").style.display = "block";
 }
 
