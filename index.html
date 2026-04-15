@@ -12,11 +12,8 @@
 <p id="status"></p>
 
 <script>
-  // ✅ BYT TILL DITT RIKTIGA CLIENT ID
   const CLIENT_ID = "cb562e24e68e49bdb497b65bc42cd010";
-
-  const REDIRECT_URI =
-    "https://kidsoz.github.io/musikquizff/";
+  const REDIRECT_URI = "https://kidsoz.github.io/musikquizff/";
 
   document.getElementById("login").onclick = () => {
     const authUrl =
@@ -29,17 +26,12 @@
   };
 
   const params = new URLSearchParams(window.location.search);
-  if (params.get("code")) {
+  const code = params.get("code");
+
+  if (code) {
     document.getElementById("status").textContent =
       "✅ Redirect tillbaka från Spotify fungerar";
   }
-  const params = new URLSearchParams(window.location.search);
-const code = params.get("code");
-
-if (code) {
-  document.getElementById("status").textContent =
-    "✅ OAuth-kod mottagen från Spotify";
-}
 </script>
 
 </body>
