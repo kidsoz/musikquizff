@@ -2,19 +2,25 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <title>Spotify Login – GitHub Test</title>
+  <title>Spotify Login – GitHub</title>
 </head>
 <body>
 
-<h1>Spotify login – GitHub test</h1>
+<h1>Spotify-inloggning (test)</h1>
 
 <button id="login">Logga in med Spotify</button>
+
 <p id="status"></p>
 
 <script>
+  // ========= INSTÄLLNINGAR =========
+  // Client ID från Spotify Developer Dashboard
   const CLIENT_ID = "cb562e24e68e49bdb497b65bc42cd010";
+
+  // Din GitHub Pages-adress (EXAKT)
   const REDIRECT_URI = "https://kidsoz.github.io/musikquizff/";
 
+  // ========= LOGIN =========
   document.getElementById("login").onclick = () => {
     const authUrl =
       "https://accounts.spotify.com/authorize" +
@@ -22,15 +28,20 @@
       "&client_id=" + CLIENT_ID +
       "&redirect_uri=" + encodeURIComponent(REDIRECT_URI);
 
+    // Skicka användaren till Spotify
     window.location.href = authUrl;
   };
 
+  // ========= TA EMOT REDIRECT =========
   const params = new URLSearchParams(window.location.search);
   const code = params.get("code");
 
   if (code) {
     document.getElementById("status").textContent =
-      "✅ Redirect tillbaka från Spotify fungerar";
+      "✅ OAuth-kod mottagen från Spotify. Redirect fungerar.";
+
+    // Ta bort ?code= från adressfältet (så sidan inte loopar)
+    window.history.replaceState({}, document.title, REDIRECT_URI);
   }
 </script>
 
