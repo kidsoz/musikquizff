@@ -1,25 +1,23 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>🎵 Spotify Musikquiz</title>
   <style>
     body {
       font-family: system-ui, Arial, sans-serif;
       max-width: 700px;
       margin: 2rem auto;
-      line-height: 1.5;
     }
-    button, select {
-      padding: 0.5rem 1rem;
+    button, input {
+      padding: 0.5rem;
       font-size: 1rem;
       margin-top: 0.5rem;
+      width: 100%;
     }
     #options button {
-      display: block;
-      width: 100%;
-      text-align: left;
       margin-top: 0.3rem;
+      text-align: left;
     }
   </style>
 </head>
@@ -27,113 +25,161 @@
 
 <h1>🎵 Spotify Musikquiz</h1>
 
-<p>Välj en officiell Spotify‑spellista:</p>
-
-<select id="playlistSelect">
-  <option value="37i9dQZF1DXcBWIGoYBM5M">Top 50 Global</option>
-  <option value="37i9dQZF1DX4cSj6yP6Lyf">Top 50 Sweden</option>
-  <option value="37i9dQZF1DX1h5H5JzRz9v">Viral 50 Global</option>
-</select>
-
-<br />
-<button id="start">Starta quiz</button>
+<button id="login">Logga in med Spotify</button>
 
 <p id="status"></p>
 
-<hr />
+<hr>
+
+<input id="playlistId" placeholder="Klistra in Spotify Playlist-ID" />
+<button id="load">Starta quiz</button>
 
 <h2 id="question"></h2>
 <audio id="audio" controls></audio>
-
 <div id="options"></div>
-
 <p id="score"></p>
-<button id="next" style="display:none;">Nästa låt</button>
+<button id="next" style="display:none;">Nästa</button>
 
 <script>
-  // ✅ Din Cloudflare‑proxy
-  const PROXY_URL = "https://spotify-proxy.joeljohansson89.workers.dev";
+/* =========================
+   KONFIG
+========================= */
+const CLIENT_ID = "DITT_SPOTIFY_CLIENT_ID";
+const REDIRECT_URI = "https://kidsoz.github.io/musikquizff/";
+const SCOPES = "playlist-read-public";
 
-  let tracks = [];
-  let index = 0;
-  let score = 0;
+/* =========================
+   PKCE-HJÄLP
+========================= */
+function generateVerifier() {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let str = "";
+  for (let i = 0; i < 64; i++) {
+    str += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return str;
+}
 
-  document.getElementById("start").onclick = loadPlaylist;
-  document.getElementById("next").onclick = nextQuestion;
+async function generateChallenge(verifier) {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
 
-  async function loadPlaylist() {
-    const playlistId = document.getElementById("playlistSelect").value;
-    const status = document.getElementById("status");
+/* =========================
+   LOGIN
+========================= */
+document.getElementById("login").onclick = async () => {
+  const verifier = generateVerifier();
+  localStorage.setItem("verifier", verifier);
+  const challenge = await generateChallenge(verifier);
 
-    status.textContent = "⏳ Laddar spellista…";
+  const url =
+    "https://accounts.spotify.com/authorize" +
+    "?client_id=" + CLIENT_ID +
+    "&response_type=code" +
+    "&redirect_uri=" + encodeURIComponent(REDIRECT_URI) +
+    "&scope=" + SCOPES +
+    "&code_challenge_method=S256" +
+    "&code_challenge=" + challenge;
 
-    const res = await fetch(`${PROXY_URL}/?playlist=${playlistId}`);
-    const data = await res.json();
+  window.location.href = url;
+};
 
-    if (!data.ok) {
-      status.textContent = "❌ Kunde inte läsa spellistan";
-      return;
+/* =========================
+   TOKEN-UTBYTE
+========================= */
+const params = new URLSearchParams(window.location.search);
+const code = params.get("code");
+
+if (code) getToken(code);
+
+async function getToken(code) {
+  const verifier = localStorage.getItem("verifier");
+
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: REDIRECT_URI,
+    client_id: CLIENT_ID,
+    code_verifier: verifier
+  });
+
+  const res = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
+
+  const data = await res.json();
+  localStorage.setItem("token", data.access_token);
+  document.getElementById("status").textContent = "✅ Inloggad!";
+  window.history.replaceState({}, document.title, REDIRECT_URI);
+}
+
+/* =========================
+   QUIZ
+========================= */
+let tracks = [];
+let index = 0;
+let score = 0;
+
+document.getElementById("load").onclick = loadPlaylist;
+document.getElementById("next").onclick = nextQuestion;
+
+async function loadPlaylist() {
+  const id = document.getElementById("playlistId").value.trim();
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(
+    `https://api.spotify.com/v1/playlists/${id}/tracks`,
+    {
+      headers: { Authorization: `Bearer ${token}` }
     }
+  );
 
-    tracks = data.items
-      .map(i => i.track)
-      .filter(t => t && t.preview_url);
+  const data = await res.json();
+  tracks = data.items.map(i => i.track).filter(t => t.preview_url);
 
-    if (tracks.length < 3) {
-      status.textContent = "❌ För få låtar med preview";
-      return;
-    }
+  index = 0;
+  score = 0;
+  nextQuestion();
+}
 
-    score = 0;
-    index = 0;
-    status.textContent = `✅ ${tracks.length} låtar klara`;
-    nextQuestion();
-  }
+function nextQuestion() {
+  document.getElementById("next").style.display = "none";
+  const track = tracks[index];
+  document.getElementById("question").textContent = "Vilken låt är detta?";
+  document.getElementById("audio").src = track.preview_url;
+  document.getElementById("audio").play();
 
-  function nextQuestion() {
-    document.getElementById("next").style.display = "none";
-    document.getElementById("options").innerHTML = "";
+  const options = tracks
+    .filter(t => t.name !== track.name)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 2)
+    .map(t => t.name)
+    .concat(track.name)
+    .sort(() => Math.random() - 0.5);
 
-    const track = tracks[index];
-    document.getElementById("question").textContent = "Vilken låt är detta?";
-    document.getElementById("audio").src = track.preview_url;
-    document.getElementById("audio").play();
+  document.getElementById("options").innerHTML = "";
+  options.forEach(name => {
+    const b = document.createElement("button");
+    b.textContent = name;
+    b.onclick = () => answer(name === track.name);
+    document.getElementById("options").appendChild(b);
+  });
 
-    const options = createOptions(track.name);
-    options.forEach(name => {
-      const btn = document.createElement("button");
-      btn.textContent = name;
-      btn.onclick = () => answer(name === track.name);
-      document.getElementById("options").appendChild(btn);
-    });
+  document.getElementById("score").textContent = `Poäng: ${score}`;
+}
 
-    document.getElementById("score").textContent = `Poäng: ${score}`;
-  }
-
-  function createOptions(correct) {
-    const others = tracks
-      .filter(t => t.name !== correct)
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 2)
-      .map(t => t.name);
-
-    return [...others, correct].sort(() => Math.random() - 0.5);
-  }
-
-  function answer(correct) {
-    alert(correct ? "✅ Rätt!" : "❌ Fel!");
-    if (correct) score++;
-    document.getElementById("score").textContent = `Poäng: ${score}`;
-
-    index++;
-    if (index < tracks.length) {
-      document.getElementById("next").style.display = "inline";
-    } else {
-      alert(`🎉 Quiz klart! Slutpoäng: ${score}`);
-      score = 0;
-      index = 0;
-    }
-  }
+function answer(correct) {
+  if (correct) score++;
+  document.getElementById("next").style.display = "inline";
+  index++;
+}
 </script>
 
 </body>
