@@ -1,70 +1,111 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-  <meta charset="UTF-8">
-  <title>🎵 YouTube Musikquiz</title>
-  <style>
-    body {
-      font-family: system-ui, Arial, sans-serif;
-      max-width: 700px;
-      margin: 2rem auto;
-    }
-    button {
-      padding: 0.5rem;
-      width: 100%;
-      margin-top: 0.5rem;
-      font-size: 1rem;
-    }
-    iframe {
-      width: 100%;
-      height: 315px;
-      margin-top: 1rem;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>🎧 Musikquiz (endast ljud)</title>
+
+<style>
+  body {
+    font-family: system-ui, Arial, sans-serif;
+    max-width: 700px;
+    margin: 2rem auto;
+  }
+
+  button {
+    width: 100%;
+    padding: 0.6rem;
+    margin-top: 0.4rem;
+    font-size: 1rem;
+  }
+
+  /* YouTube-spelaren göms helt */
+  #player-wrapper {
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    top: -1000px;
+    left: -1000px;
+  }
+</style>
 </head>
+
 <body>
 
-<h1>🎵 YouTube Musikquiz</h1>
+<h1>🎧 Vilken låt är detta?</h1>
 
 <button id="start">Starta quiz</button>
+
 <p id="question"></p>
 
-<iframe
-  id="player"
-  src=""
-  frameborder="0"
-  allow="autoplay; encrypted-media"
-  allowfullscreen>
-</iframe>
-
 <div id="options"></div>
+
 <p id="score"></p>
 
+<!-- GÖMD YouTube-spelare -->
+<div id="player-wrapper">
+  <div id="player"></div>
+</div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+
 <script>
-/* =========================
-   QUIZDATA (BYGG UT!)
-========================= */
+/* ========= QUIZDATA ========= */
 const quiz = [
   {
-    videoId: "fJ9rUzIMcZQ", // Queen – Bohemian Rhapsody
-    correct: "Bohemian Rhapsody",
-    options: ["Bohemian Rhapsody", "We Will Rock You", "Another One Bites The Dust"]
+    videoId: "fJ9rUzIMcZQ", // Queen
+    start: 30,
+    answer: "Bohemian Rhapsody",
+    options: [
+      "Bohemian Rhapsody",
+      "We Will Rock You",
+      "Another One Bites The Dust"
+    ]
   },
   {
-    videoId: "3JZ4pnNtyxQ", // Billie Jean
-    correct: "Billie Jean",
-    options: ["Thriller", "Beat It", "Billie Jean"]
+    videoId: "3JZ4pnNtyxQ", // MJ
+    start: 40,
+    answer: "Billie Jean",
+    options: [
+      "Beat It",
+      "Thriller",
+      "Billie Jean"
+    ]
   },
   {
-    videoId: "kXYiU_JCYtU", // Numb
-    correct: "Numb",
-    options: ["In The End", "Numb", "Crawling"]
+    videoId: "kXYiU_JCYtU", // Linkin Park
+    start: 35,
+    answer: "Numb",
+    options: [
+      "In The End",
+      "Numb",
+      "Crawling"
+    ]
   }
 ];
 
+let player;
 let index = 0;
 let score = 0;
 
+/* ========= YOUTUBE API ========= */
+function onYouTubeIframeAPIReady() {
+  player = new YT.Player("player", {
+    height: "1",
+    width: "1",
+    playerVars: {
+      controls: 0,
+      rel: 0,
+      showinfo: 0,
+      modestbranding: 1
+    },
+    events: {
+      onReady: () => {}
+    }
+  });
+}
+
+/* ========= QUIZ ========= */
 document.getElementById("start").onclick = startQuiz;
 
 function startQuiz() {
@@ -74,29 +115,34 @@ function startQuiz() {
 }
 
 function nextQuestion() {
-  const q = quiz[index];
-  document.getElementById("question").textContent = "Vilken låt är detta?";
+  document.getElementById("options").innerHTML = "";
   document.getElementById("score").textContent = `Poäng: ${score}`;
 
-  // startar videon på 30s och autoplay
-  document.getElementById("player").src =
-    `https://www.youtube.com/embed/${q.videoId}?start=30&autoplay=1`;
+  const q = quiz[index];
+  document.getElementById("question").textContent = "Lyssna...";
 
-  const optionsDiv = document.getElementById("options");
-  optionsDiv.innerHTML = "";
-
-  q.options.forEach(opt => {
-    const btn = document.createElement("button");
-    btn.textContent = opt;
-    btn.onclick = () => answer(opt === q.correct);
-    optionsDiv.appendChild(btn);
+  player.loadVideoById({
+    videoId: q.videoId,
+    startSeconds: q.start
   });
+
+  // spela 12 sek, sen pausa
+  setTimeout(() => player.pauseVideo(), 12000);
+
+  q.options
+    .sort(() => Math.random() - 0.5)
+    .forEach(option => {
+      const btn = document.createElement("button");
+      btn.textContent = option;
+      btn.onclick = () => answer(option === q.answer);
+      document.getElementById("options").appendChild(btn);
+    });
 }
 
 function answer(correct) {
   if (correct) {
-    alert("✅ Rätt!");
     score++;
+    alert("✅ Rätt!");
   } else {
     alert("❌ Fel!");
   }
@@ -105,8 +151,8 @@ function answer(correct) {
   if (index < quiz.length) {
     nextQuestion();
   } else {
-    alert(`🎉 Quiz klart! Poäng: ${score}/${quiz.length}`);
-    document.getElementById("player").src = "";
+    alert(`🎉 Klar! Poäng: ${score}/${quiz.length}`);
+    player.stopVideo();
   }
 }
 </script>
