@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <title>Spotify Login – Minimal Test</title>
+</head>
+<body>
+
+<h1>Spotify login – test</h1>
+
+<button id="login">Logga in med Spotify</button>
+<p id="status"></p>
+
+<script>
+  const CLIENT_ID = "cb562e24e68e49bdb497b65bc42cd010";
+  const REDIRECT_URI = window.location.origin;
+
+  document.getElementById("login").onclick = () => {
+    const authUrl =
+      "https://accounts.spotify.com/authorize" +
+      "?response_type=code" +
+      "&client_id=" + CLIENT_ID +
+      "&redirect_uri=" + encodeURIComponent(REDIRECT_URI);
+
+    window.location.href = authUrl;
+  };
+
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+
+  if (code) {
+    document.getElementById("status").textContent =
+      "✅ Redirect tillbaka med code fungerar";
+  }
+</script>
+
+</body>
+</html>
+``
