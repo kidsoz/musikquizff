@@ -1,195 +1,46 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-<meta charset="UTF-8" />
-<title>🎧 Musikquiz – Samtidiga svar</title>
-
-<style>
-  body {
-    font-family: system-ui, Arial, sans-serif;
-    max-width: 850px;
-    margin: 2rem auto;
-    background: #020617;
-    color: #e5e7eb;
-  }
-  h1, h2 { text-align: center; }
-  .card {
-    background: #020617;
-    border-radius: 16px;
-    padding: 1.2rem;
-    margin-top: 1rem;
-    border: 1px solid #1e293b;
-  }
-  button, select {
-    width: 100%;
-    padding: 0.7rem;
-    font-size: 1rem;
-    border-radius: 10px;
-    border: none;
-    margin-top: 0.5rem;
-    cursor: pointer;
-  }
-  button { background: #2563eb; color: white; }
-  button.secondary { background: #475569; }
-  .timer { font-size: 2.4rem; text-align: center; margin: 0.5rem 0; }
-  .scores { display: flex; justify-content: space-between; font-weight: bold; }
-  #player-wrapper {
-    position: fixed;
-    width: 1px; height: 1px;
-    left: -9999px; top: -9999px;
-    overflow: hidden; pointer-events: none;
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>🎶 Musikquiz V4</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-
-<h1>🎧 Musikquiz – 90‑talister</h1>
-
-<div class="card">
-  <label>Svårighetsnivå:</label>
-  <select id="difficulty">
-    <option value="easy">🟢 Lätt</option>
-    <option value="medium">🟡 Medel</option>
-    <option value="hard">🔴 Svår</option>
-  </select>
-  <button id="start">Starta quiz</button>
-</div>
-
-<div class="card scores">
-  <span id="scoreA">Lag A: 0</span>
-  <span id="scoreB">Lag B: 0</span>
-</div>
-
-<div class="card">
-  <div class="timer" id="timer">12</div>
-  <h2 id="question">Tryck start…</h2>
-
-  <div id="options"></div>
-
-  <button id="showAnswer" class="secondary" style="display:none;">Visa facit</button>
-  <p id="answer" style="text-align:center;font-size:1.2rem;"></p>
-
-  <div class="scores">
-    <button onclick="addPoint('A')">+1 Lag A</button>
-    <button onclick="addPoint('B')">+1 Lag B</button>
+<header>
+  <h1>🎶 Musikquiz</h1>
+  <div class="theme-selector">
+    <label>Tema:</label>
+    <select id="theme">
+      <option value="90s">90‑talister</option>
+      <option value="pop">Pop</option>
+      <option value="rock">Rock</option>
+    </select>
   </div>
+</header>
 
-  <button id="next" class="secondary" style="display:none;">Nästa låt</button>
-</div>
+<main>
+  <section class="card">
+    <div class="timer" id="timer">–</div>
+    <h2 id="instruction">Redo</h2>
 
-<div id="player-wrapper"><div id="player"></div></div>
+    <button id="start">Starta låt</button>
+    <button id="showAnswer" class="hidden">Visa facit</button>
+    <p id="answer"></p>
 
-<script src="https://www.youtube.com/iframe_api"></script>
-<script>
-/* ===== DATA ===== */
-const quizData = [
-  { videoId: "CevxZvSJLk8", title: "Mr Brightside", artist: "The Killers", decade: "2000-tal" },
-  { videoId: "kXYiU_JCYtU", title: "Numb", artist: "Linkin Park", decade: "2000-tal" },
-  { videoId: "dvgZkm1xWPE", title: "Bad Romance", artist: "Lady Gaga", decade: "2000-tal" },
-  { videoId: "bo_efYhYU2A", title: "Yeah!", artist: "Usher", decade: "2000-tal" },
-  { videoId: "hTWKbfoikeg", title: "Smells Like Teen Spirit", artist: "Nirvana", decade: "1990-tal" }
-];
+    <div class="bonus">
+      <button onclick="bonus('A')">+2 Bonus Lag A</button>
+      <button onclick="penalty('A')">−1 Straff Lag A</button>
+      <button onclick="bonus('B')">+2 Bonus Lag B</button>
+      <button onclick="penalty('B')">−1 Straff Lag B</button>
+    </div>
 
-let player, index = 0, timer, timeLeft = 12;
-let scoreA = 0, scoreB = 0;
+    <div class="scores">
+      <span>Lag A: <strong id="scoreA">0</strong></span>
+      <span>Lag B: <strong id="scoreB">0</strong></span>
+    </div>
+  </section>
+</main>
 
-/* ===== YOUTUBE ===== */
-function onYouTubeIframeAPIReady() {
-  player = new YT.Player("player", { height: "1", width: "1", playerVars: { controls: 0 } });
-}
-
-/* ===== QUIZ ===== */
-document.getElementById("start").onclick = startQuiz;
-document.getElementById("next").onclick = nextQuestion;
-document.getElementById("showAnswer").onclick = showAnswer;
-
-function startQuiz() {
-  index = 0; scoreA = 0; scoreB = 0;
-  shuffle(quizData);
-  updateScores();
-  nextQuestion();
-}
-
-function nextQuestion() {
-  if (index >= quizData.length) {
-    alert(`🎉 Klar!\nLag A: ${scoreA}\nLag B: ${scoreB}`);
-    player.stopVideo();
-    return;
-  }
-
-  clearInterval(timer);
-  timeLeft = 12;
-  updateTimer();
-  document.getElementById("options").innerHTML = "";
-  document.getElementById("answer").textContent = "";
-  document.getElementById("showAnswer").style.display = "none";
-  document.getElementById("next").style.display = "none";
-
-  const q = quizData[index];
-  const diff = difficulty.value;
-  const startTime = diff === "easy" ? 55 : diff === "medium" ? 35 : 10;
-
-  const type = ["title", "artist", "decade"][Math.floor(Math.random() * 3)];
-  question.textContent =
-    type === "title" ? "Vilken låt är detta?" :
-    type === "artist" ? "Vilken artist är detta?" :
-    "Vilket årtionde är låten ifrån?";
-
-  const options = generateOptions(type, q);
-  options.forEach(opt => {
-    const b = document.createElement("button");
-    b.textContent = opt;
-    document.getElementById("options").appendChild(b);
-  });
-
-  player.loadVideoById({ videoId: q.videoId, startSeconds: startTime });
-
-  timer = setInterval(() => {
-    timeLeft--; updateTimer();
-    if (timeLeft === 0) endRound();
-  }, 1000);
-}
-
-function endRound() {
-  clearInterval(timer);
-  player.pauseVideo();
-  document.getElementById("showAnswer").style.display = "block";
-}
-
-function showAnswer() {
-  const q = quizData[index];
-  answer.textContent = `✅ ${q.title} – ${q.artist}`;
-  index++;
-  document.getElementById("next").style.display = "block";
-}
-
-function generateOptions(type, correct) {
-  const pool = quizData.map(q => q[type]);
-  const unique = [...new Set(pool)];
-  return shuffle(unique.filter(v => v !== correct[type])).slice(0,2).concat(correct[type]).sort(()=>Math.random()-0.5);
-}
-
-function addPoint(team) {
-  team === "A" ? scoreA++ : scoreB++;
-  updateScores();
-}
-
-function updateScores() {
-  scoreAEl.textContent = `Lag A: ${scoreA}`;
-  scoreBEl.textContent = `Lag B: ${scoreB}`;
-}
-
-function updateTimer() { timerEl.textContent = timeLeft; }
-function shuffle(a){ return a.sort(()=>Math.random()-0.5); }
-
-const timerEl = document.getElementById("timer");
-const question = document.getElementById("question");
-const answer = document.getElementById("answer");
-const difficulty = document.getElementById("difficulty");
-const scoreAEl = document.getElementById("scoreA");
-const scoreBEl = document.getElementById("scoreB");
-</script>
-
+<script src="script.js"></script>
 </body>
 </html>
